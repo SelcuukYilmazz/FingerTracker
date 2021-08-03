@@ -10,6 +10,7 @@ using namespace cv;
 using namespace std;
 
 Mat frame,output,circleFrame,frame_mask_hsv,frame_mask_YCbCr,frame_mask_lab,hand_frame;
+Mat maskHSV,maskYCrCb,maskLAB,maskMerge;
 Mat imgBlur, imgBilateral, imgCanny,imgDilate,imgGray;
 Mat output_approx, imgTransparent, circleGray;
 vector<Point2f> boxPts(4);
@@ -36,7 +37,7 @@ void mouseEvent( int evt, int x, int y, int d, void *param )
     }
 }
 
-//  Find biggest contour method
+//  This method returns biggest size contour.
 int findBiggestContour(vector<vector<Point> > handContours){
     int indexOfBiggestContour = -1;
     int sizeOfBiggestContour = 0;
@@ -345,24 +346,27 @@ int main()
 //        Cloning Process Materials
         frame_mask_hsv = imgBlur.clone();
         frame_mask_YCbCr = imgBlur.clone();
-//        Converting image BGR color space to Grayscale color space
+//        Converting images colorspaces
         cvtColor(frame_mask_hsv,frame_mask_hsv,COLOR_BGR2HSV);
         cvtColor(frame_mask_YCbCr,frame_mask_YCbCr,COLOR_BGR2YCrCb);
-        Mat maskHSV,maskYCrCb,maskLAB,maskMerge;
+//         Setting masks color channels so we can detect skin easily
+
         inRange(frame_mask_hsv,Scalar(hueMin,satMin,valueMin),Scalar(hueMax,satMax,valueMax),maskHSV);
         inRange(frame_mask_YCbCr,Scalar(yMin,crMin,cbMin),Scalar(yMax,crMax,cbMax),maskYCrCb);
         imshow("maskHSV",maskHSV);
         imshow("maskYCrCb",maskYCrCb);
+//        Merging maskYCrCb and maskHSV so we can get merged mask and with that detect skin
         bitwise_and(maskYCrCb,maskHSV,maskMerge);
 
-
+//        Declaring vectors for hand contours
         vector<vector<Point>> handContours;
         vector<Vec4i> handHierarchy;
 
-
+//        We can find contours of merged mask here then call findBiggestContour method
         findContours( maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
         int index = findBiggestContour(handContours);
 
+//        We declare an empty window so we can draw on it.
         Mat hand_draw = Mat::zeros( frame.size(), CV_8UC1 );
         drawContours(hand_draw, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
         drawContours(hand_frame, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
