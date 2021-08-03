@@ -9,7 +9,7 @@
 using namespace cv;
 using namespace std;
 
-Mat frame,output,circleFrame,frame_mask_hsv,frame_mask_YCbCr,frame_mask_lab;
+Mat frame,output,circleFrame,frame_mask_hsv,frame_mask_YCbCr,frame_mask_lab,hand_frame;
 Mat imgBlur, imgBilateral, imgCanny,imgDilate,imgGray;
 Mat output_approx, imgTransparent, circleGray;
 vector<Point2f> boxPts(4);
@@ -292,9 +292,9 @@ int main()
     vid.set(CAP_PROP_FRAME_HEIGHT,480);
 //    This line creates a trackbar and gives it default value.
     namedWindow("TracksHSV");
-    int hueMin=145;
+    int hueMin=0;
     int hueMax=180;
-    int satMin=10;
+    int satMin=20;
     int satMax=65;
     int valueMin=0;
     int valueMax=255;
@@ -309,7 +309,7 @@ int main()
     int yMax=255;
     int crMin=134;
     int crMax=145;
-    int cbMin=120;
+    int cbMin=122;
     int cbMax=142;
     createTrackbar("YMin","TracksYCbCr",&yMin,255);
     createTrackbar("YMax","TracksYCbCr",&yMax,255);
@@ -334,6 +334,7 @@ int main()
 //        output is clone of frame so we can do some changes on output and tranparenting it on frame
         output = frame.clone();
         circleFrame = frame.clone();
+        hand_frame = frame.clone();
 
 //    Preprocessing Image
 //        Blurring image so we can detect shapes better. But not overdoing it because in that case code won't detect anything
@@ -355,24 +356,23 @@ int main()
         bitwise_and(maskYCrCb,maskHSV,maskMerge);
 
 
-        Mat canny_output;
-        vector<vector<Point> > handContours;
+        vector<vector<Point>> handContours;
         vector<Vec4i> handHierarchy;
 
 
         findContours( maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
         int index = findBiggestContour(handContours);
 
-        Mat drawing = Mat::zeros( frame.size(), CV_8UC1 );
-        drawContours( drawing, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
+        Mat hand_draw = Mat::zeros( frame.size(), CV_8UC1 );
+        drawContours(hand_draw, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
+        drawContours(hand_frame, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
 
-        imshow("drw", drawing);
-
+        imshow("Hand", hand_draw);
         imshow("result",maskMerge);
 
 
 //        Canny filter is detecting edges better
-        Canny( drawing, imgCanny, 25, 75);
+        Canny( hand_draw, imgCanny, 25, 75);
 //        Creating kernel for using it in dilate function. with Dilate we can detect better and easily.
         Mat kernel = getStructuringElement(MORPH_RECT,Size(3,3));
         dilate(imgCanny,imgDilate,kernel);
@@ -384,8 +384,9 @@ int main()
         beta = (1.0-alpha);
 //        addWeighted function is transparenting image
         addWeighted(frame,alpha,output,beta,0.0,imgTransparent);
+        addWeighted(imgTransparent,alpha,hand_frame,beta,0.0,imgTransparent);
 //        Imshow showing image
-        imshow("Trans",imgTransparent);
+        imshow("Transparent",imgTransparent);
 //     This code defines mouse call back event
          setMouseCallback("HSV", mouseEvent, &frame);
          setMouseCallback("YCBCR", mouseEvent, &frame);
