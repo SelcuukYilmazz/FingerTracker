@@ -25,6 +25,7 @@ vector<vector<Point>> conPoly;
 vector<Rect> boundRect;
 vector<Vec3f> circles;
 vector<int> shape_areas;
+vector<Point> drawing;
 Mat hsvchannel[3],ycrcbchannel[3];
 
 // Mouse click function
@@ -42,7 +43,7 @@ int findBiggestContour(vector<vector<Point> > handContours){
     int indexOfBiggestContour = -1;
     int sizeOfBiggestContour = 0;
     for (int i = 0; i < handContours.size(); i++){
-        if(handContours[i].size() > sizeOfBiggestContour){
+        if(handContours[i].size() > sizeOfBiggestContour && handContours[i].size()>250){
             sizeOfBiggestContour = handContours[i].size();
             indexOfBiggestContour = i;
         }
@@ -141,7 +142,6 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
 
             for(int i = 0; i < conPoly.size();i++)
             {
-                drawContours(output,conPoly,i,Scalar(255,0,255),5);
                 int objCor = (int)conPoly[i].size();
                 boundRect.push_back(boundingRect(conPoly[i]));
 //                  Determining shape names below
@@ -293,10 +293,10 @@ int main()
     vid.set(CAP_PROP_FRAME_HEIGHT,480);
 //    This line creates a trackbar and gives it default value.
     namedWindow("TracksHSV");
-    int hueMin=0;
+    int hueMin=140;
     int hueMax=180;
-    int satMin=20;
-    int satMax=65;
+    int satMin=10;
+    int satMax=125;
     int valueMin=0;
     int valueMax=255;
     createTrackbar("hueMin","TracksHSV",&hueMin,360);
@@ -308,8 +308,8 @@ int main()
     namedWindow("TracksYCbCr");
     int yMin=0;
     int yMax=255;
-    int crMin=134;
-    int crMax=145;
+    int crMin=129;
+    int crMax=155;
     int cbMin=122;
     int cbMax=142;
     createTrackbar("YMin","TracksYCbCr",&yMin,255);
@@ -361,10 +361,27 @@ int main()
 //        Declaring vectors for hand contours
         vector<vector<Point>> handContours;
         vector<Vec4i> handHierarchy;
+        Point extTop;
 
+
+        Mat kernel = getStructuringElement(MORPH_RECT,Size(5,5));
 //        We can find contours of merged mask here then call findBiggestContour method
+        erode(maskMerge,maskMerge,kernel);
+        for(int i =0;i<2;i++)
+        {
+            dilate(maskMerge,maskMerge,kernel);
+        }
         findContours( maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
         int index = findBiggestContour(handContours);
+        if(index>-1 && past_time > 1)
+        {
+            extTop   = *min_element(handContours[index].begin(), handContours[index].end(),[](const Point& lhs, const Point& rhs) {return lhs.y < rhs.y;});
+            drawing.push_back(extTop);
+        }
+        if(drawing.size() > 5)
+        {
+            drawing.erase(drawing.begin());
+        }
 
 //        We declare an empty window so we can draw on it.
         Mat hand_draw = Mat::zeros( frame.size(), CV_8UC1 );
@@ -372,15 +389,13 @@ int main()
         drawContours(hand_frame, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
 
         imshow("Hand", hand_draw);
-        imshow("result",maskMerge);
 
 
 //        Canny filter is detecting edges better
-        Canny( hand_draw, imgCanny, 25, 75);
+        Canny( imgBlur, imgCanny, 25, 75);
 //        Creating kernel for using it in dilate function. with Dilate we can detect better and easily.
-        Mat kernel = getStructuringElement(MORPH_RECT,Size(3,3));
+        kernel = getStructuringElement(MORPH_RECT,Size(3,3));
         dilate(imgCanny,imgDilate,kernel);
-        imshow("test",imgDilate);
 //        Calling getContours function
         getContours(imgDilate,output,circleFrame);
 
@@ -389,6 +404,12 @@ int main()
 //        addWeighted function is transparenting image
         addWeighted(frame,alpha,output,beta,0.0,imgTransparent);
         addWeighted(imgTransparent,alpha,hand_frame,beta,0.0,imgTransparent);
+        circle(imgTransparent, extTop, 10, Scalar(50,100,255),FILLED,LINE_8);
+        for(int i=1; i<drawing.size(); i++)
+        {
+            line(imgTransparent, drawing[i-1], drawing[i], Scalar(0, 255, 0), 2);
+        }
+
 //        Imshow showing image
         imshow("Transparent",imgTransparent);
 //     This code defines mouse call back event
