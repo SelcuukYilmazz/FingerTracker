@@ -5,6 +5,7 @@
 #include <ctime>
 #include <math.h>
 #include <iostream>
+#include <Calculations.h>
 #define PI 3.14159265
 using namespace cv;
 using namespace std;
@@ -27,6 +28,7 @@ vector<Vec3f> circles;
 vector<int> shape_areas;
 vector<Point> drawing;
 Mat hsvchannel[3],ycrcbchannel[3];
+Calculations calculations;
 
 // Mouse click function
 void mouseEvent( int evt, int x, int y, int d, void *param )
@@ -37,62 +39,6 @@ void mouseEvent( int evt, int x, int y, int d, void *param )
         cout<<"values"<<(int)(*values).at<Vec3b>(y, x)[0]<<" "<<(int)(*values).at<Vec3b>(y, x)[1]<<" "<<(int)(*values).at<Vec3b>(y, x)[2]<<endl;
     }
 }
-
-//  This method returns biggest size contour.
-int findBiggestContour(vector<vector<Point> > handContours){
-    int indexOfBiggestContour = -1;
-    int sizeOfBiggestContour = 0;
-    for (int i = 0; i < handContours.size(); i++){
-        if(handContours[i].size() > sizeOfBiggestContour && handContours[i].size()>250){
-            sizeOfBiggestContour = handContours[i].size();
-            indexOfBiggestContour = i;
-        }
-    }
-    return indexOfBiggestContour;
-}
-
-
-//  This method calculates angles between points
-double calculate_angle(vector<Point> points)
-{
-    double sumOfAngles = 0;
-    double x_distance, y_distance, hypotenuse1, hypotenuse2, hypotenuse3;
-    for(int i=0;i<points.size();i++)
-    {
-//        We take points that has 1 different point between them because 2 point's angle must be 0.
-        if (i !=points.size()-2)
-        {
-//            Code calculate distance between 3 points then calculates angle by triangle formula (acos((a^2+b^2-c^2)/(2*a*b)))
-            x_distance = abs(points[i+1].x-points[i].x);
-            y_distance = abs(points[i+1].y-points[i].y);
-            hypotenuse1 = sqrt(pow(x_distance,2)+pow(y_distance,2));
-            x_distance = abs(points[i+2].x-points[i+1].x);
-            y_distance = abs(points[i+2].y-points[i+1].y);
-            hypotenuse2 = sqrt(pow(x_distance,2)+pow(y_distance,2));
-            x_distance = abs(points[i+2].x-points[i].x);
-            y_distance = abs(points[i+2].y-points[i].y);
-            hypotenuse3 = sqrt(pow(x_distance,2)+pow(y_distance,2));
-            sumOfAngles = sumOfAngles + (acos((pow(hypotenuse1,2) + pow(hypotenuse2,2) - pow(hypotenuse3,2))/(2.0 * hypotenuse1 * hypotenuse2))* 180 / PI);
-        }
-//        This else statement can find 2 different points after vector size.
-        else
-        {
-//            Code calculate distance between 3 points then calculates angle by triangle formula (acos((a^2+b^2-c^2)/(2*a*b)))
-            x_distance = abs(points[i-1].x-points[i].x);
-            y_distance = abs(points[i-1].y-points[i].y);
-            hypotenuse1 = sqrt(pow(x_distance,2)+pow(y_distance,2));
-            x_distance = abs(points[i-2].x-points[i-1].x);
-            y_distance = abs(points[i-2].y-points[i-1].y);
-            hypotenuse2 = sqrt(pow(x_distance,2)+pow(y_distance,2));
-            x_distance = abs(points[i-2].x-points[i].x);
-            y_distance = abs(points[i-2].y-points[i].y);
-            hypotenuse3 = sqrt(pow(x_distance,2)+pow(y_distance,2));
-            sumOfAngles = sumOfAngles + (acos((pow(hypotenuse1,2) + pow(hypotenuse2,2) - pow(hypotenuse3,2))/(2.0 * hypotenuse1 * hypotenuse2))* 180 / PI);
-        }
-    }
-    return sumOfAngles;
-}
-
 
 void getContours(Mat output_canny,Mat output,Mat circleFrame)
 {
@@ -132,7 +78,7 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
                     float peri = arcLength(contours[i],true);
                     approxPolyDP(contours[i],tempPoly,0.03*peri,true);
                     conPoly.push_back(tempPoly);
-                    shapeAngles.push_back(calculate_angle(tempPoly));
+                    shapeAngles.push_back(calculations.calculate_angle(tempPoly));
                     shape_areas.push_back(area);
                 }
         }
@@ -372,7 +318,7 @@ int main()
             dilate(maskMerge,maskMerge,kernel);
         }
         findContours( maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
-        int index = findBiggestContour(handContours);
+        int index = calculations.findBiggestContour(handContours);
         if(index>-1 && past_time > 1)
         {
             extTop   = *min_element(handContours[index].begin(), handContours[index].end(),[](const Point& lhs, const Point& rhs) {return lhs.y < rhs.y;});
