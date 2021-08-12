@@ -6,7 +6,10 @@
 #include <math.h>
 #include <iostream>
 #include <Calculations.h>
+#include <shapeobjects.h>
 #define PI 3.14159265
+#define WIDTH 640
+#define HEIGHT 480
 using namespace cv;
 using namespace std;
 
@@ -20,7 +23,7 @@ const int fps =30;
 double alpha = 0.6;
 double beta;
 vector<double> shapeAngles;
-time_t current_time,start_time,past_time;
+time_t current_time,start_time,past_time,scanner_time;
 vector<Point> tempPoly;
 vector<vector<Point>> conPoly;
 vector<Rect> boundRect;
@@ -29,17 +32,40 @@ vector<int> shape_areas;
 vector<Point> drawing;
 Mat hsvchannel[3],ycrcbchannel[3];
 Calculations calculations;
-
-// Mouse click function
-void mouseEvent( int evt, int x, int y, int d, void *param )
+bool Lock = false;
+bool Scan = true;
+// Yapim asamasinda
+//#####################################################################################################################################################
+ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop, ShapeObjects shape)
 {
-    Mat* values = (Mat*) param;
-    if (evt == EVENT_LBUTTONDOWN)
+    if(fingerTop.x<shape.getCenter().x+shape.getRadius() && fingerTop.x>shape.getCenter().x-shape.getRadius() &&
+            fingerTop.y<shape.getCenter().y+shape.getRadius() && fingerTop.y>shape.getCenter().y-shape.getRadius())
     {
-        cout<<"values"<<(int)(*values).at<Vec3b>(y, x)[0]<<" "<<(int)(*values).at<Vec3b>(y, x)[1]<<" "<<(int)(*values).at<Vec3b>(y, x)[2]<<endl;
+        current_time = time(nullptr);
     }
-}
+    else
+    {
+        scanner_time = time(nullptr);
+    }
 
+
+    past_time = current_time - scanner_time;
+    cout<<past_time<<endl<<shape.getCenter();
+
+    if(past_time > 2)
+    {
+        scanner_time = time(nullptr);
+        Lock = !Lock;
+        Scan = !Scan;
+    }
+    if(Lock)
+    {
+        shape.setCenter(fingerTop);
+    }
+    circle(drawingFrame, shape.getCenter(), shape.getRadius(), Scalar(255,50,100),FILLED,LINE_8);
+    return shape;
+}
+//#####################################################################################################################################################
 void getContours(Mat output_canny,Mat output,Mat circleFrame)
 {
     vector<vector<Point>> contours;
@@ -235,8 +261,14 @@ int main()
 //    string capture = samples::findFile("/home/selcuk/SIMTEK/daire.png");
 //    VideoCapture class is for capturing frames from webcams
     VideoCapture vid(0);
-    vid.set(CAP_PROP_FRAME_WIDTH,640);
-    vid.set(CAP_PROP_FRAME_HEIGHT,480);
+    vid.set(CAP_PROP_FRAME_WIDTH,WIDTH);
+    vid.set(CAP_PROP_FRAME_HEIGHT,HEIGHT);
+
+//    Index Points of drawing shapes
+    Point centerFrame = Point(WIDTH/2,HEIGHT/2);
+
+    ShapeObjects moveableShape(centerFrame,40);
+
 //    This line creates a trackbar and gives it default value.
     namedWindow("TracksHSV");
     int hueMin=140;
@@ -307,7 +339,7 @@ int main()
 //        Declaring vectors for hand contours
         vector<vector<Point>> handContours;
         vector<Vec4i> handHierarchy;
-        Point extTop;
+        Point fingerTop;
 
 
         Mat kernel = getStructuringElement(MORPH_RECT,Size(5,5));
@@ -319,11 +351,11 @@ int main()
         }
         findContours( maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
         int index = calculations.findBiggestContour(handContours);
-        if(index>-1 && past_time > 1)
+        if(index>-1)
         {
-            extTop   = *min_element(handContours[index].begin(), handContours[index].end(),[](const Point& lhs, const Point& rhs) {return lhs.y < rhs.y;});
-            drawing.push_back(extTop);
+            fingerTop   = *min_element(handContours[index].begin(), handContours[index].end(),[](const Point& lhs, const Point& rhs) {return lhs.y < rhs.y;});
         }
+        drawing.push_back(fingerTop);
         if(drawing.size() > 5)
         {
             drawing.erase(drawing.begin());
@@ -348,9 +380,12 @@ int main()
 //        Alpha and Beta value is for tranparenting parameters
         beta = (1.0-alpha);
 //        addWeighted function is transparenting image
+
+        moveableShape = customizeShapes(vid,frame,fingerTop, moveableShape);
+
         addWeighted(frame,alpha,output,beta,0.0,imgTransparent);
         addWeighted(imgTransparent,alpha,hand_frame,beta,0.0,imgTransparent);
-        circle(imgTransparent, extTop, 10, Scalar(50,100,255),FILLED,LINE_8);
+        circle(imgTransparent, fingerTop, 10, Scalar(50,100,255),FILLED,LINE_8);
         for(int i=1; i<drawing.size(); i++)
         {
             line(imgTransparent, drawing[i-1], drawing[i], Scalar(0, 255, 0), 2);
@@ -358,9 +393,6 @@ int main()
 
 //        Imshow showing image
         imshow("Transparent",imgTransparent);
-//     This code defines mouse call back event
-         setMouseCallback("HSV", mouseEvent, &frame);
-         setMouseCallback("YCBCR", mouseEvent, &frame);
 //        This if statement setting fps
         if (waitKey(1000/fps)>=0)
         {
