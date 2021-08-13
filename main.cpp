@@ -30,10 +30,11 @@ vector<Rect> boundRect;
 vector<Vec3f> circles;
 vector<int> shape_areas;
 vector<Point> drawing;
+vector<ShapeObjects> customObjectList;
 Mat hsvchannel[3],ycrcbchannel[3];
 Calculations calculations;
-bool Lock = false;
-bool Scan = true;
+char key;
+
 // Yapim asamasinda
 //#####################################################################################################################################################
 ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop, ShapeObjects shape)
@@ -41,28 +42,40 @@ ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop,
     if(fingerTop.x<shape.getCenter().x+shape.getRadius() && fingerTop.x>shape.getCenter().x-shape.getRadius() &&
             fingerTop.y<shape.getCenter().y+shape.getRadius() && fingerTop.y>shape.getCenter().y-shape.getRadius())
     {
-        current_time = time(nullptr);
+        shape.startCurrentTime();
     }
     else
     {
-        scanner_time = time(nullptr);
+        shape.startCurrentTime();
+        shape.startStartTime();
     }
 
 
-    past_time = current_time - scanner_time;
-    cout<<past_time<<endl<<shape.getCenter();
+    past_time = shape.getCurrentTime() - shape.getStartTime();
 
     if(past_time > 2)
     {
-        scanner_time = time(nullptr);
-        Lock = !Lock;
-        Scan = !Scan;
+        shape.startStartTime();
+        shape.setLock(true);
+        shape.unlockShape(fingerTop);
+        shape.setPastFrame(fingerTop);
+
     }
-    if(Lock)
+
+    if(shape.getLock())
     {
         shape.setCenter(fingerTop);
     }
-    circle(drawingFrame, shape.getCenter(), shape.getRadius(), Scalar(255,50,100),FILLED,LINE_8);
+    if(shape.getObjectType()=="circle")
+    {
+        circle(drawingFrame, shape.getCenter(), shape.getRadius(), Scalar(255,50,100),FILLED,LINE_8);
+    }
+    else if(shape.getObjectType()=="rectangle")
+    {
+        Point topLeft = Point(shape.getCenter().x-shape.getRadius(),shape.getCenter().y+shape.getRadius());
+        Point bottomRight = Point(shape.getCenter().x+shape.getRadius(),shape.getCenter().y-shape.getRadius());
+        rectangle(drawingFrame,topLeft,bottomRight,Scalar(255,255,0),-1);
+    }
     return shape;
 }
 //#####################################################################################################################################################
@@ -265,9 +278,8 @@ int main()
     vid.set(CAP_PROP_FRAME_HEIGHT,HEIGHT);
 
 //    Index Points of drawing shapes
-    Point centerFrame = Point(WIDTH/2,HEIGHT/2);
+    Point centerFrame = Point(WIDTH/2,HEIGHT/6);
 
-    ShapeObjects moveableShape(centerFrame,40);
 
 //    This line creates a trackbar and gives it default value.
     namedWindow("TracksHSV");
@@ -314,6 +326,17 @@ int main()
         output = frame.clone();
         circleFrame = frame.clone();
         hand_frame = frame.clone();
+        key = waitKey(1000/fps)&0XFF;
+
+        if(key == 's')
+        {
+            customObjectList.push_back(ShapeObjects(centerFrame,40,"circle"));
+        }
+        if(key == 'd')
+        {
+            customObjectList.push_back(ShapeObjects(centerFrame,40,"rectangle"));
+        }
+
 
 //    Preprocessing Image
 //        Blurring image so we can detect shapes better. But not overdoing it because in that case code won't detect anything
@@ -381,7 +404,10 @@ int main()
         beta = (1.0-alpha);
 //        addWeighted function is transparenting image
 
-        moveableShape = customizeShapes(vid,frame,fingerTop, moveableShape);
+        for(int i = 0;i<customObjectList.size();i++)
+        {
+            customObjectList[i] = customizeShapes(vid,frame,fingerTop, customObjectList[i]);
+        }
 
         addWeighted(frame,alpha,output,beta,0.0,imgTransparent);
         addWeighted(imgTransparent,alpha,hand_frame,beta,0.0,imgTransparent);
@@ -394,7 +420,7 @@ int main()
 //        Imshow showing image
         imshow("Transparent",imgTransparent);
 //        This if statement setting fps
-        if (waitKey(1000/fps)>=0)
+        if (key =='q')
         {
             VideoCapture release(0);
             break;
