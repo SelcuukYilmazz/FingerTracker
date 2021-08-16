@@ -13,25 +13,20 @@
 using namespace cv;
 using namespace std;
 
-Mat frame,output,circleFrame,frame_mask_hsv,frame_mask_YCbCr,frame_mask_lab,hand_frame;
-Mat maskHSV,maskYCrCb,maskLAB,maskMerge;
-Mat imgBlur, imgBilateral, imgCanny,imgDilate,imgGray;
-Mat output_approx, imgTransparent, circleGray;
-vector<Point2f> boxPts(4);
+Mat frame,output,circleFrame,frame_mask_hsv,frame_mask_YCbCr,frame_mask_lab,hand_frame,output_approx,
+                                                                            imgTransparent, circleGray,imgBlur, imgBilateral, imgCanny,imgDilate,imgGray,maskHSV,maskYCrCb,maskLAB,maskMerge;
 String objectType;
 const int fps =30;
 double alpha = 0.6;
 double beta;
 vector<double> shapeAngles;
 time_t current_time,start_time,past_time,scanner_time;
-vector<Point> tempPoly;
+vector<Point> tempPoly,drawing;
 vector<vector<Point>> conPoly;
 vector<Rect> boundRect;
 vector<Vec3f> circles;
 vector<int> shape_areas;
-vector<Point> drawing;
 vector<ShapeObjects> customObjectList;
-Mat hsvchannel[3],ycrcbchannel[3];
 Calculations calculations;
 char key;
 
@@ -68,13 +63,13 @@ ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop,
     }
     if(shape.getObjectType()=="circle")
     {
-        circle(drawingFrame, shape.getCenter(), shape.getRadius(), Scalar(255,50,100),FILLED,LINE_8);
+        circle(drawingFrame, shape.getCenter(), shape.getRadius(), Scalar(shape.getBlue(),shape.getGreen(),shape.getRed()),FILLED,LINE_8);
     }
     else if(shape.getObjectType()=="rectangle")
     {
         Point topLeft = Point(shape.getCenter().x-shape.getRadius(),shape.getCenter().y+shape.getRadius());
         Point bottomRight = Point(shape.getCenter().x+shape.getRadius(),shape.getCenter().y-shape.getRadius());
-        rectangle(drawingFrame,topLeft,bottomRight,Scalar(255,255,0),-1);
+        rectangle(drawingFrame,topLeft,bottomRight,Scalar(shape.getBlue(),shape.getGreen(),shape.getRed()),-1);
     }
     return shape;
 }
@@ -216,52 +211,11 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
                                 int radius = c[2];
                                 objectType = "Daire";
                                 circle( output, center, radius, Scalar(0,0,255),FILLED,LINE_8);
+                                //            Write shape type onto shape.
                                 putText(frame,objectType,center,FONT_HERSHEY_PLAIN,3,Scalar(0,69,255),2);
-//                                rectangle(output,boundingRect(c[i]).tl(),boundingRect(c[i]).br(),Scalar(0,255,0),5);
                             }
                            objectType="";
-//      ###############################################################################################################################################
-//                    if(shapeAngles[i]>=700 && shapeAngles[i]<=1020)
-//                    {
-
-//                        drawContours(output,conPoly,i,Scalar(0,0,255),FILLED);
-
-//                        double maximum_x = 0;
-//                        double maximum_y = 0;
-//                        double minimum_x = 0;
-//                        double minimum_y = 0;
-
-//                        for(int j=0;j<conPoly[i].size();j++)
-//                        {
-//                            if(conPoly[i][j].x>maximum_x){
-//                                maximum_x = conPoly[i][j].x;
-//                            }
-//                            else if(conPoly[i][j].x<minimum_x){
-//                                minimum_x = conPoly[i][j].x;
-//                            }
-//                            if(conPoly[i][j].y>maximum_y){
-//                                maximum_y = conPoly[i][j].y;
-//                            }
-//                            else if(conPoly[i][j].y<minimum_y){
-//                                minimum_y = conPoly[i][j].y;
-//                            }
-//                        }
-
-//                        Point center = Point((maximum_x+minimum_x)/2,(maximum_y+minimum_y)/2);
-
-
-//                        double center_x = abs(conPoly[i][0].x+conPoly[i][(int)conPoly[i].size()/2].x);
-//                        double center_y = abs(conPoly[i][0].y+conPoly[i][(int)conPoly[i].size()/2].y);
-//                        Point center =Point(center_x/2,center_y/2);
-//                        double radius = sqrt(pow(abs(conPoly[i][0].x-center.x),2)+pow(abs(conPoly[i][0].y-center.y),2));
-//                        circle(output, center, radius, Scalar(0,0,255),FILLED,LINE_8);
-//                        circle(output, center, sqrt(shape_areas[i]/PI), Scalar(0,0,255),FILLED,LINE_8);
-//                        cout<<shape_areas[i]<<endl;
-
-//                    }
                 }
-//            Puts texts of shapes onto them
-
             }
 
 }
@@ -270,8 +224,6 @@ int main()
 {
 //  This line holds starting time of code
     start_time = time(nullptr);
-//    capture variable is for direct photo inputs
-//    string capture = samples::findFile("/home/selcuk/SIMTEK/daire.png");
 //    VideoCapture class is for capturing frames from webcams
     VideoCapture vid(0);
     vid.set(CAP_PROP_FRAME_WIDTH,WIDTH);
@@ -308,6 +260,15 @@ int main()
     createTrackbar("CrMax","TracksYCbCr",&crMax,255);
     createTrackbar("CbMin","TracksYCbCr",&cbMin,255);
     createTrackbar("CbMax","TracksYCbCr",&cbMax,255);
+    namedWindow("TracksShapeFeatures");
+    int blue=0;
+    int red=0;
+    int green=0;
+    int radius = 40;
+    createTrackbar("Blue","TracksShapeFeatures",&blue,255);
+    createTrackbar("Green","TracksShapeFeatures",&green,255);
+    createTrackbar("Red","TracksShapeFeatures",&red,255);
+    createTrackbar("Radius","TracksShapeFeatures",&radius,255);
 
 
 
@@ -330,12 +291,20 @@ int main()
 
         if(key == 's')
         {
-            customObjectList.push_back(ShapeObjects(centerFrame,40,"circle"));
+            customObjectList.push_back(ShapeObjects(centerFrame,radius,"circle",blue,red,green));
         }
         if(key == 'd')
         {
-            customObjectList.push_back(ShapeObjects(centerFrame,40,"rectangle"));
+            customObjectList.push_back(ShapeObjects(centerFrame,radius,"rectangle",blue,red,green));
         }
+        if(key == 'r')
+        {
+            if(customObjectList.size()>0)
+            {
+                customObjectList.erase(customObjectList.begin());
+            }
+        }
+
 
 
 //    Preprocessing Image
@@ -419,7 +388,7 @@ int main()
 
 //        Imshow showing image
         imshow("Transparent",imgTransparent);
-//        This if statement setting fps
+//        This if statement quits
         if (key =='q')
         {
             VideoCapture release(0);

@@ -10,12 +10,12 @@ class ShapeObjects
 {
 private:
     cv::Point center,pastFrame;
-    int radius;
+    int radius,blue,red,green;
     std::string objectType;
     bool lock,scan;
     time_t current_time,start_time;
 public:
-    ShapeObjects(cv::Point center,int radius,std::string objectType);
+    ShapeObjects(cv::Point center,int radius,std::string objectType,int blue, int red, int green);
     cv::Point getCenter();
     void startStartTime();
     void startCurrentTime();
@@ -31,6 +31,9 @@ public:
     void setPastFrame(cv::Point pastFrame);
     void unlockShape(cv::Point updatedFrame);
     std::string getObjectType();
+    int getBlue();
+    int getRed();
+    int getGreen();
 };
 
 #endif // SHAPEOBJECTS_H
