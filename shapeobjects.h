@@ -12,10 +12,11 @@ private:
     cv::Point center,pastFrame;
     int radius,blue,red,green;
     std::string objectType;
+    std::string text;
     bool lock,scan;
     time_t current_time,start_time;
 public:
-    ShapeObjects(cv::Point center,int radius,std::string objectType,int blue, int red, int green);
+    ShapeObjects(cv::Point center,int radius,std::string objectType,int blue, int red, int green,std::string Text);
     cv::Point getCenter();
     void startStartTime();
     void startCurrentTime();
@@ -34,6 +35,7 @@ public:
     int getBlue();
     int getRed();
     int getGreen();
+    std::string getText();
 };
 
 #endif // SHAPEOBJECTS_H

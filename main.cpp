@@ -18,7 +18,7 @@ Mat frame,output,circleFrame,frame_mask_hsv,frame_mask_YCbCr,frame_mask_lab,hand
 String objectType;
 const int fps =30;
 double alpha = 0.6;
-double beta;
+double beta, textSize;
 vector<double> shapeAngles;
 time_t current_time,start_time,past_time,scanner_time;
 vector<Point> tempPoly,drawing;
@@ -28,6 +28,7 @@ vector<Vec3f> circles;
 vector<int> shape_areas;
 vector<ShapeObjects> customObjectList;
 Calculations calculations;
+String text;
 char key;
 
 // Yapim asamasinda
@@ -67,9 +68,18 @@ ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop,
     }
     else if(shape.getObjectType()=="rectangle")
     {
-        Point topLeft = Point(shape.getCenter().x-shape.getRadius(),shape.getCenter().y+shape.getRadius());
-        Point bottomRight = Point(shape.getCenter().x+shape.getRadius(),shape.getCenter().y-shape.getRadius());
+        Point topLeft = Point(shape.getCenter().x-shape.getRadius(),shape.getCenter().y-shape.getRadius());
+        Point bottomRight = Point(shape.getCenter().x+shape.getRadius(),shape.getCenter().y+shape.getRadius());
         rectangle(drawingFrame,topLeft,bottomRight,Scalar(shape.getBlue(),shape.getGreen(),shape.getRed()),-1);
+        if((shape.getRadius()*2)/53 <= 2)
+        {
+            textSize = (shape.getRadius()*2)/53;
+        }
+        else
+        {
+            textSize = 2;
+        }
+        putText(frame,shape.getText(),Point(topLeft.x,shape.getCenter().y + (textSize/2)),FONT_HERSHEY_PLAIN,textSize,Scalar(0,69,255),2);
     }
     return shape;
 }
@@ -234,32 +244,32 @@ int main()
 
 
 //    This line creates a trackbar and gives it default value.
-    namedWindow("TracksHSV");
+//    namedWindow("TracksHSV");
     int hueMin=140;
     int hueMax=180;
     int satMin=10;
     int satMax=125;
     int valueMin=0;
     int valueMax=255;
-    createTrackbar("hueMin","TracksHSV",&hueMin,360);
-    createTrackbar("hueMax","TracksHSV",&hueMax,360);
-    createTrackbar("satMin","TracksHSV",&satMin,255);
-    createTrackbar("satMax","TracksHSV",&satMax,255);
-    createTrackbar("valueMin","TracksHSV",&valueMin,255);
-    createTrackbar("valueMax","TracksHSV",&valueMax,255);
-    namedWindow("TracksYCbCr");
+//    createTrackbar("hueMin","TracksHSV",&hueMin,360);
+//    createTrackbar("hueMax","TracksHSV",&hueMax,360);
+//    createTrackbar("satMin","TracksHSV",&satMin,255);
+//    createTrackbar("satMax","TracksHSV",&satMax,255);
+//    createTrackbar("valueMin","TracksHSV",&valueMin,255);
+//    createTrackbar("valueMax","TracksHSV",&valueMax,255);
+//    namedWindow("TracksYCbCr");
     int yMin=0;
     int yMax=255;
     int crMin=129;
     int crMax=155;
     int cbMin=122;
     int cbMax=142;
-    createTrackbar("YMin","TracksYCbCr",&yMin,255);
-    createTrackbar("YMax","TracksYCbCr",&yMax,255);
-    createTrackbar("CrMin","TracksYCbCr",&crMin,255);
-    createTrackbar("CrMax","TracksYCbCr",&crMax,255);
-    createTrackbar("CbMin","TracksYCbCr",&cbMin,255);
-    createTrackbar("CbMax","TracksYCbCr",&cbMax,255);
+//    createTrackbar("YMin","TracksYCbCr",&yMin,255);
+//    createTrackbar("YMax","TracksYCbCr",&yMax,255);
+//    createTrackbar("CrMin","TracksYCbCr",&crMin,255);
+//    createTrackbar("CrMax","TracksYCbCr",&crMax,255);
+//    createTrackbar("CbMin","TracksYCbCr",&cbMin,255);
+//    createTrackbar("CbMax","TracksYCbCr",&cbMax,255);
     namedWindow("TracksShapeFeatures");
     int blue=0;
     int red=0;
@@ -291,11 +301,13 @@ int main()
 
         if(key == 's')
         {
-            customObjectList.push_back(ShapeObjects(centerFrame,radius,"circle",blue,red,green));
+            customObjectList.push_back(ShapeObjects(centerFrame,radius,"circle",blue,red,green,""));
         }
         if(key == 'd')
         {
-            customObjectList.push_back(ShapeObjects(centerFrame,radius,"rectangle",blue,red,green));
+            cout << "Enter Title: ";
+            getline(cin, text);
+            customObjectList.push_back(ShapeObjects(centerFrame,radius,"rectangle",blue,red,green,text));
         }
         if(key == 'r')
         {
@@ -323,8 +335,8 @@ int main()
 
         inRange(frame_mask_hsv,Scalar(hueMin,satMin,valueMin),Scalar(hueMax,satMax,valueMax),maskHSV);
         inRange(frame_mask_YCbCr,Scalar(yMin,crMin,cbMin),Scalar(yMax,crMax,cbMax),maskYCrCb);
-        imshow("maskHSV",maskHSV);
-        imshow("maskYCrCb",maskYCrCb);
+//        imshow("maskHSV",maskHSV);
+//        imshow("maskYCrCb",maskYCrCb);
 //        Merging maskYCrCb and maskHSV so we can get merged mask and with that detect skin
         bitwise_and(maskYCrCb,maskHSV,maskMerge);
 
@@ -358,7 +370,7 @@ int main()
         drawContours(hand_draw, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
         drawContours(hand_frame, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
 
-        imshow("Hand", hand_draw);
+//        imshow("Hand", hand_draw);
 
 
 //        Canny filter is detecting edges better

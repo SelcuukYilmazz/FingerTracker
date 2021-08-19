@@ -1,6 +1,6 @@
 #include "shapeobjects.h"
 
-ShapeObjects::ShapeObjects(cv::Point center, int radius,std::string objectType,int blue , int red, int green)
+ShapeObjects::ShapeObjects(cv::Point center, int radius,std::string objectType,int blue , int red, int green, std::string text)
 {
     this->center = center;
     this->radius = radius;
@@ -10,6 +10,7 @@ ShapeObjects::ShapeObjects(cv::Point center, int radius,std::string objectType,i
     this->blue = blue;
     this->red = red;
     this->green = green;
+    this->text = text;
 }
 void ShapeObjects::startStartTime()
 {
@@ -81,6 +82,10 @@ int ShapeObjects::getRed()
 int ShapeObjects::getGreen()
 {
     return this->green;
+}
+std::string ShapeObjects::getText()
+{
+    return this->text;
 }
 void ShapeObjects::unlockShape(cv::Point updatedFrame)
 {
