@@ -8,6 +8,9 @@ SOURCES += \
         main.cpp \
         shapeobjects.cpp
 
+QMAKE_CXXFLAGS += -std=c++0x -pthread
+LIBS += -pthread
+
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += opencv4
 

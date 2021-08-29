@@ -7,6 +7,7 @@
 #include <iostream>
 #include <Calculations.h>
 #include <shapeobjects.h>
+#include <thread>
 #define PI 3.14159265
 #define WIDTH 640
 #define HEIGHT 480
@@ -31,10 +32,10 @@ Calculations calculations;
 String text;
 char key;
 
-// Yapim asamasinda
-//#####################################################################################################################################################
+//Return Circle or Rectangle that program should draw on screen and make its adjustments
 ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop, ShapeObjects shape)
 {
+//    If person's finger's top is in the borders of shape then activate lock timer. Else reset timers.
     if(fingerTop.x<shape.getCenter().x+shape.getRadius() && fingerTop.x>shape.getCenter().x-shape.getRadius() &&
             fingerTop.y<shape.getCenter().y+shape.getRadius() && fingerTop.y>shape.getCenter().y-shape.getRadius())
     {
@@ -45,32 +46,33 @@ ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop,
         shape.startCurrentTime();
         shape.startStartTime();
     }
-
-
+// Calculate the time that finger spent in the borders.
     past_time = shape.getCurrentTime() - shape.getStartTime();
-
+// If past time is more than 2 then lock if it is unlocked or unlock if it is locked
     if(past_time > 2)
     {
         shape.startStartTime();
         shape.setLock(true);
         shape.unlockShape(fingerTop);
         shape.setPastFrame(fingerTop);
-
     }
-
+//    If locked then change center point
     if(shape.getLock())
     {
         shape.setCenter(fingerTop);
     }
+//    If object type is Circle then draw circle as given attributes
     if(shape.getObjectType()=="circle")
     {
         circle(drawingFrame, shape.getCenter(), shape.getRadius(), Scalar(shape.getBlue(),shape.getGreen(),shape.getRed()),FILLED,LINE_8);
     }
+//    If object type is Rectangle then draw rectangle and write the input inside the rectangle as given attributes
     else if(shape.getObjectType()=="rectangle")
     {
         Point topLeft = Point(shape.getCenter().x-shape.getRadius(),shape.getCenter().y-shape.getRadius());
         Point bottomRight = Point(shape.getCenter().x+shape.getRadius(),shape.getCenter().y+shape.getRadius());
         rectangle(drawingFrame,topLeft,bottomRight,Scalar(shape.getBlue(),shape.getGreen(),shape.getRed()),-1);
+//        Adaptive font sizes. Maximum font size is 2.
         if((shape.getRadius()*2)/53 <= 2)
         {
             textSize = (shape.getRadius()*2)/53;
@@ -83,16 +85,13 @@ ShapeObjects customizeShapes(VideoCapture vid,Mat drawingFrame, Point fingerTop,
     }
     return shape;
 }
-//#####################################################################################################################################################
-void getContours(Mat output_canny,Mat output,Mat circleFrame)
+// Shape detector method
+void getShapes(Mat output_canny,Mat output,Mat circleFrame)
 {
     vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
-
 //  findContours function finding contours with that code can detect shapes
     findContours( output_canny, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE );
-
-
 //    with detected contours we can detect all shapes
 //    This line gets current time while executing code
     current_time = time(nullptr);
@@ -110,9 +109,7 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
         circles.clear();
         for(int i = 0; i < contours.size();i++)
         {
-
             vector<RotatedRect> minRect( contours.size() );
-
 //        This functions calculates area of detected shape and if area is bigger than 1000 pixels it passes
             int area = contourArea(contours[i]);
 
@@ -127,9 +124,6 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
                 }
         }
     }
-
-
-
             for(int i = 0; i < conPoly.size();i++)
             {
                 int objCor = (int)conPoly[i].size();
@@ -199,8 +193,7 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
                 }
                 else if (objCor <=8)
                 {
-//      ###############################################################################################################################################
-        //                If shape has more than 6 corners then finding code uses HoughCircles method
+//                If shape has more than 6 corners then finding code uses HoughCircles method
 
                     if(past_time>1)
                     {
@@ -227,9 +220,7 @@ void getContours(Mat output_canny,Mat output,Mat circleFrame)
                            objectType="";
                 }
             }
-
 }
-
 int main()
 {
 //  This line holds starting time of code
@@ -238,38 +229,21 @@ int main()
     VideoCapture vid(0);
     vid.set(CAP_PROP_FRAME_WIDTH,WIDTH);
     vid.set(CAP_PROP_FRAME_HEIGHT,HEIGHT);
-
 //    Index Points of drawing shapes
     Point centerFrame = Point(WIDTH/2,HEIGHT/6);
-
-
 //    This line creates a trackbar and gives it default value.
-//    namedWindow("TracksHSV");
     int hueMin=140;
     int hueMax=180;
     int satMin=10;
     int satMax=125;
     int valueMin=0;
     int valueMax=255;
-//    createTrackbar("hueMin","TracksHSV",&hueMin,360);
-//    createTrackbar("hueMax","TracksHSV",&hueMax,360);
-//    createTrackbar("satMin","TracksHSV",&satMin,255);
-//    createTrackbar("satMax","TracksHSV",&satMax,255);
-//    createTrackbar("valueMin","TracksHSV",&valueMin,255);
-//    createTrackbar("valueMax","TracksHSV",&valueMax,255);
-//    namedWindow("TracksYCbCr");
     int yMin=0;
     int yMax=255;
     int crMin=129;
     int crMax=155;
     int cbMin=122;
     int cbMax=142;
-//    createTrackbar("YMin","TracksYCbCr",&yMin,255);
-//    createTrackbar("YMax","TracksYCbCr",&yMax,255);
-//    createTrackbar("CrMin","TracksYCbCr",&crMin,255);
-//    createTrackbar("CrMax","TracksYCbCr",&crMax,255);
-//    createTrackbar("CbMin","TracksYCbCr",&cbMin,255);
-//    createTrackbar("CbMax","TracksYCbCr",&cbMax,255);
     namedWindow("TracksShapeFeatures");
     int blue=0;
     int red=0;
@@ -279,36 +253,33 @@ int main()
     createTrackbar("Green","TracksShapeFeatures",&green,255);
     createTrackbar("Red","TracksShapeFeatures",&red,255);
     createTrackbar("Radius","TracksShapeFeatures",&radius,255);
-
-
-
 //    This if statement is checking if the code took frame from webcam or not if not code quitting.
     if (!vid.isOpened())
     {
         return -1;
     }
-
 //     This while loop is reading each frame from camera and using it
     while(vid.read(frame))
     {
-
-
-//        output is clone of frame so we can do some changes on output and tranparenting it on frame
+//        output is clone of frame so we can do some changes on output and transparenting it on frame
         output = frame.clone();
         circleFrame = frame.clone();
         hand_frame = frame.clone();
+//        Key variable holds the key pressed.
         key = waitKey(1000/fps)&0XFF;
-
+//        If pressed key is s then create circle with given attributes.
         if(key == 's')
         {
             customObjectList.push_back(ShapeObjects(centerFrame,radius,"circle",blue,red,green,""));
         }
+//        If pressed key is d then create rectangle with given attributes and input.
         if(key == 'd')
         {
             cout << "Enter Title: ";
             getline(cin, text);
             customObjectList.push_back(ShapeObjects(centerFrame,radius,"rectangle",blue,red,green,text));
         }
+//        If pressed key is r then remove first shape.
         if(key == 'r')
         {
             if(customObjectList.size()>0)
@@ -316,15 +287,9 @@ int main()
                 customObjectList.erase(customObjectList.begin());
             }
         }
-
-
-
 //    Preprocessing Image
 //        Blurring image so we can detect shapes better. But not overdoing it because in that case code won't detect anything
         GaussianBlur(frame,imgBlur,Size(3,3),3,0);
-
-
-
 //        Cloning Process Materials
         frame_mask_hsv = imgBlur.clone();
         frame_mask_YCbCr = imgBlur.clone();
@@ -332,28 +297,24 @@ int main()
         cvtColor(frame_mask_hsv,frame_mask_hsv,COLOR_BGR2HSV);
         cvtColor(frame_mask_YCbCr,frame_mask_YCbCr,COLOR_BGR2YCrCb);
 //         Setting masks color channels so we can detect skin easily
-
         inRange(frame_mask_hsv,Scalar(hueMin,satMin,valueMin),Scalar(hueMax,satMax,valueMax),maskHSV);
         inRange(frame_mask_YCbCr,Scalar(yMin,crMin,cbMin),Scalar(yMax,crMax,cbMax),maskYCrCb);
-//        imshow("maskHSV",maskHSV);
-//        imshow("maskYCrCb",maskYCrCb);
 //        Merging maskYCrCb and maskHSV so we can get merged mask and with that detect skin
         bitwise_and(maskYCrCb,maskHSV,maskMerge);
-
 //        Declaring vectors for hand contours
         vector<vector<Point>> handContours;
         vector<Vec4i> handHierarchy;
         Point fingerTop;
-
-
+//        Eroding then dilating merged mask so we can find better results
         Mat kernel = getStructuringElement(MORPH_RECT,Size(5,5));
-//        We can find contours of merged mask here then call findBiggestContour method
         erode(maskMerge,maskMerge,kernel);
         for(int i =0;i<2;i++)
         {
             dilate(maskMerge,maskMerge,kernel);
         }
-        findContours( maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
+//        Finding contours of skins so we can find biggest contour and find top of finger with it.
+        findContours(maskMerge, handContours, handHierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0));
+//        Calculating biggest contour index so we can find hand better.
         int index = calculations.findBiggestContour(handContours);
         if(index>-1)
         {
@@ -364,43 +325,39 @@ int main()
         {
             drawing.erase(drawing.begin());
         }
-
 //        We declare an empty window so we can draw on it.
         Mat hand_draw = Mat::zeros( frame.size(), CV_8UC1 );
         drawContours(hand_draw, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
         drawContours(hand_frame, handContours, index, Scalar(255), -1, 8, handHierarchy, 0, Point() );
-
-//        imshow("Hand", hand_draw);
-
-
 //        Canny filter is detecting edges better
         Canny( imgBlur, imgCanny, 25, 75);
 //        Creating kernel for using it in dilate function. with Dilate we can detect better and easily.
         kernel = getStructuringElement(MORPH_RECT,Size(3,3));
         dilate(imgCanny,imgDilate,kernel);
-//        Calling getContours function
-        getContours(imgDilate,output,circleFrame);
-
+//        Calling getShapes function in thread so we can calculate shapes while putting moveable objects on screen.
+        thread shapeThread(getShapes,imgDilate,output,circleFrame);
 //        Alpha and Beta value is for tranparenting parameters
         beta = (1.0-alpha);
-//        addWeighted function is transparenting image
-
+//        Draws moveable rectangles and circles on screen
         for(int i = 0;i<customObjectList.size();i++)
         {
             customObjectList[i] = customizeShapes(vid,frame,fingerTop, customObjectList[i]);
         }
-
+//        Program needs join function here because below code is drawing and writing shapes so program needs to find all the thing that it should draw.
+        shapeThread.join();
+//        addWeighted function is transparenting image
         addWeighted(frame,alpha,output,beta,0.0,imgTransparent);
         addWeighted(imgTransparent,alpha,hand_frame,beta,0.0,imgTransparent);
+//        Draws circle on finger
         circle(imgTransparent, fingerTop, 10, Scalar(50,100,255),FILLED,LINE_8);
+//        Draws green line before hand.
         for(int i=1; i<drawing.size(); i++)
         {
             line(imgTransparent, drawing[i-1], drawing[i], Scalar(0, 255, 0), 2);
         }
-
 //        Imshow showing image
         imshow("Transparent",imgTransparent);
-//        This if statement quits
+//        This if statement quits if you press q.
         if (key =='q')
         {
             VideoCapture release(0);

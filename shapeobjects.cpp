@@ -1,5 +1,6 @@
 #include "shapeobjects.h"
 
+// This object is moveable object and you can write in it.
 ShapeObjects::ShapeObjects(cv::Point center, int radius,std::string objectType,int blue , int red, int green, std::string text)
 {
     this->center = center;
@@ -87,9 +88,9 @@ std::string ShapeObjects::getText()
 {
     return this->text;
 }
+// This method locks or unlocks the shape.
 void ShapeObjects::unlockShape(cv::Point updatedFrame)
 {
-    std::cout<<getScan()<<std::endl;
     if((abs(this->pastFrame.x-updatedFrame.x)<this->radius || abs(this->pastFrame.y-updatedFrame.y)<this->radius) && getScan())
     {
         setLock(false);
